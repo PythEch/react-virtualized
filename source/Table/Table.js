@@ -19,7 +19,11 @@ import SortDirection from './SortDirection';
  */
 export default class Table extends React.PureComponent {
   static propTypes = {
+    /** This is just set on the grid top element. */
     'aria-label': PropTypes.string,
+
+    /** This is just set on the grid top element. */
+    'aria-labelledby': PropTypes.string,
 
     /**
      * Removes fixed height from the scrollingContainer so that the total height
@@ -83,6 +87,12 @@ export default class Table extends React.PureComponent {
 
     /** Optional renderer to be used in place of table body rows when rowCount is 0 */
     noRowsRenderer: PropTypes.func,
+
+    /**
+     * Optional callback when a column is clicked.
+     * ({ columnData: any, dataKey: string }): void
+     */
+    onColumnClick: PropTypes.func,
 
     /**
      * Optional callback when a column's header is clicked.
@@ -383,6 +393,10 @@ export default class Table extends React.PureComponent {
     // Any property that should trigger a re-render of Grid then is specified here to avoid a stale display.
     return (
       <div
+        aria-label={this.props['aria-label']}
+        aria-labelledby={this.props['aria-labelledby']}
+        aria-colcount={React.Children.toArray(children).length}
+        aria-rowcount={this.props.rowCount}
         className={cn('ReactVirtualized__Table', className)}
         id={id}
         role="grid"
@@ -392,11 +406,11 @@ export default class Table extends React.PureComponent {
             className: cn('ReactVirtualized__Table__headerRow', rowClass),
             columns: this._getHeaderColumns(),
             style: {
-              ...rowStyleObject,
               height: headerHeight,
               overflow: 'hidden',
               paddingRight: scrollbarWidth,
               width: width,
+              ...rowStyleObject,
             },
           })}
 
@@ -426,6 +440,7 @@ export default class Table extends React.PureComponent {
   }
 
   _createColumn({column, columnIndex, isScrolling, parent, rowData, rowIndex}) {
+    const {onColumnClick} = this.props;
     const {
       cellDataGetter,
       cellRenderer,
@@ -447,6 +462,10 @@ export default class Table extends React.PureComponent {
       rowIndex,
     });
 
+    const onClick = event => {
+      onColumnClick && onColumnClick({columnData, dataKey, event});
+    };
+
     const style = this._cachedColumnStyles[columnIndex];
 
     const title = typeof renderedCell === 'string' ? renderedCell : null;
@@ -456,9 +475,11 @@ export default class Table extends React.PureComponent {
     // See PR https://github.com/bvaughn/react-virtualized/pull/942
     return (
       <div
+        aria-colindex={columnIndex + 1}
         aria-describedby={id}
         className={cn('ReactVirtualized__Table__rowColumn', className)}
         key={'Row' + rowIndex + '-' + 'Col' + columnIndex}
+        onClick={onClick}
         role="gridcell"
         style={style}
         title={title}>
@@ -545,6 +566,7 @@ export default class Table extends React.PureComponent {
       };
 
       headerAriaLabel = column.props['aria-label'] || label || dataKey;
+      headerAriaSort = 'none';
       headerTabIndex = 0;
       headerOnClick = onClick;
       headerOnKeyDown = onKeyDown;
@@ -613,10 +635,10 @@ export default class Table extends React.PureComponent {
     const className = cn('ReactVirtualized__Table__row', rowClass);
     const flattenedStyle = {
       ...style,
-      ...rowStyleObject,
       height: this._getRowHeight(index),
       overflow: 'hidden',
       paddingRight: scrollbarWidth,
+      ...rowStyleObject,
     };
 
     return rowRenderer({
